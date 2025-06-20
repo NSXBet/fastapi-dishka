@@ -2,10 +2,12 @@ import asyncio
 import threading
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
+from dishka.integrations.fastapi import DishkaRoute, setup_dishka
 from dishka import Provider, make_async_container, Scope, from_context
-from fastapi import APIRouter, FastAPI
+from fastapi import FastAPI
 import uvicorn
-from .providers import RouterCollectorProvider
+from fastapi_dishka.providers import RouterCollectorProvider
+from fastapi_dishka.router import APIRouter
 
 
 @asynccontextmanager
@@ -43,6 +45,7 @@ class App:
             description=description,
             lifespan=default_lifespan,
         )
+
         self.providers = providers
         self.routers: list[APIRouter] = []
         self._server = None
@@ -66,6 +69,8 @@ class App:
                 App: self,
             },
         )
+
+        setup_dishka(container=container, app=self.app)
 
         self.app.state.container = container
 

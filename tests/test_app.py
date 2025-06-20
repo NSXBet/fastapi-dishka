@@ -1,19 +1,30 @@
 import asyncio
-import time
-from fastapi import APIRouter
-from dishka import Provider
+from dishka.integrations.fastapi import DishkaRoute
+from dishka import Provider, FromDishka, provide, Scope
+
 import httpx
 import pytest
 
-from fastapi_dishka import App, provide_router
+from fastapi_dishka import App, provide_router, APIRouter
+
+
+class Service:
+    def __init__(self):
+        self.counter = 0
+
+    def increment(self):
+        self.counter += 1
+
 
 router = APIRouter(prefix="/router")
 router2 = APIRouter(prefix="/router2")
 
 
 @router.get("/")
-def hello_world():
-    return {"message": "Hello, World!"}
+def hello_world(service: FromDishka[Service]):
+    service.increment()
+
+    return {"message": "Hello, World!", "counter": service.counter}
 
 
 @router2.get("/")
@@ -25,6 +36,7 @@ def hello_world2():
 async def test_app_can_auto_wire_routers():
     class TestProvider(Provider):
         hello_router = provide_router(router)
+        service = provide(Service, scope=Scope.APP)
 
     app = App("test app", "0.1.0", TestProvider())
 
@@ -38,6 +50,7 @@ async def test_app_can_auto_wire_routers():
 async def test_another_app_can_auto_wire_routers():
     class AnotherTestProvider(Provider):
         hello_router = provide_router(router)
+        service = provide(Service, scope=Scope.APP)
 
     app = App("test app", "0.1.0", AnotherTestProvider())
 
@@ -52,6 +65,7 @@ async def test_another_app_can_auto_wire_more_than_one_router():
     class AnotherTestProvider(Provider):
         hello_router = provide_router(router)
         hello_router2 = provide_router(router2)
+        service = provide(Service, scope=Scope.APP)
 
     app = App("test app", "0.1.0", AnotherTestProvider())
 
@@ -65,6 +79,7 @@ async def test_another_app_can_auto_wire_more_than_one_router():
 async def test_another_app_can_auto_wire_routers_from_different_providers():
     class AnotherTestProvider(Provider):
         hello_router = provide_router(router)
+        service = provide(Service, scope=Scope.APP)
 
     class AnotherTestProvider2(Provider):
         hello_router2 = provide_router(router2)
@@ -84,6 +99,7 @@ async def test_app_can_start_and_handle_requests():
     class TestProvider(Provider):
         hello_router = provide_router(router)
         hello_router2 = provide_router(router2)
+        service = provide(Service, scope=Scope.APP)
 
     app = App("test app", "0.1.0", TestProvider())
     await app._resolve_container()
@@ -110,7 +126,7 @@ async def test_app_can_start_and_handle_requests():
         async with httpx.AsyncClient() as client:
             response = await client.get(f"http://127.0.0.1:{port}/router/")
             assert response.status_code == 200
-            assert response.json() == {"message": "Hello, World!"}
+            assert response.json() == {"message": "Hello, World!", "counter": 2}
 
         # Test second router
         async with httpx.AsyncClient() as client:

@@ -1,7 +1,7 @@
 from typing import Any, Callable
 from dishka.dependency_source import CompositeDependencySource
-from fastapi import APIRouter
-from dishka import FromDishka, provide, Scope, decorate, Provider, from_context
+from fastapi_dishka.router import APIRouter
+from dishka import provide, Scope, Provider
 
 
 # Global registry to collect routers
