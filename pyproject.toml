@@ -1,0 +1,121 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fastapi_dishka"
+version = "0.1.0"
+description = "FastAPI + Dishka with providers being first-class citizens"
+authors = [
+    {name = "NSX Team", email = "heynemann@gmail.com"},
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.13"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "dishka>=1.3.0",
+    "fastapi>=0.115.6",
+    "uvicorn>=0.32.0",
+    "structlog>=24.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-mock>=3.12.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.9.0",
+    "isort>=5.12.0",
+    "flake8>=6.1.0",
+    "mypy>=1.6.0",
+    "mkdocs-material>=9.4.0",
+    "mkdocstrings[python]>=0.24.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/NSXBet/fastapi-dishka"
+"Bug Reports" = "https://github.com/NSXBet/fastapi-dishka/issues"
+"Source" = "https://github.com/NSXBet/fastapi-dishka"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--import-mode=importlib",
+    "--cov=fastapi_dishka",
+    "--cov-report=html",
+    "--cov-report=term-missing",
+    "--cov-fail-under=80",
+]
+
+[tool.black]
+line-length = 120
+target-version = ['py313']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 120
+known_first_party = ["fastapi_dishka"]
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+# Strict "no Any" enforcement
+disallow_any_unimported = true
+disallow_any_expr = true  
+disallow_any_decorated = true
+disallow_any_explicit = true
+disallow_any_generics = true
+
+# Additional strictness
+disallow_untyped_calls = true
+disallow_untyped_decorators = true  
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_subclassing_any = true
+
+# Error reporting
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+
+# Import discovery
+namespace_packages = true
+explicit_package_bases = true
+
+# Specify mypy path for src layout
+mypy_path = "src"
