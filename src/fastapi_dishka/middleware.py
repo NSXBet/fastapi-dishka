@@ -1,0 +1,74 @@
+from starlette.middleware.base import BaseHTTPMiddleware
+from typing import Callable, Any, TypeVar
+from fastapi import Request
+
+T = TypeVar("T")
+
+
+class Middleware(BaseHTTPMiddleware):
+    """
+    Base middleware class that supports dependency injection.
+
+    Inherit from this class to create middlewares that can have dependencies
+    injected through the dishka container.
+
+    Use the `get_dependency()` method to resolve dependencies from the container.
+    """
+
+    def __init__(self, app, **kwargs):
+        """
+        Initialize the middleware.
+
+        Args:
+            app: The ASGI application
+            **kwargs: Additional keyword arguments passed to the parent class
+        """
+        super().__init__(app, **kwargs)
+
+    async def get_dependency(self, request: Request, dependency_type: type[T]) -> T:
+        """
+        Get a dependency from the dishka container.
+
+        This method first tries to get the dependency from the request-scoped container
+        (which can access both REQUEST and APP scoped dependencies), and falls back
+        to the app-scoped container if the request container is not available.
+
+        Args:
+            request: The current request (used to access the container)
+            dependency_type: The type of dependency to resolve
+
+        Returns:
+            The resolved dependency instance
+
+        Raises:
+            AttributeError: If no container is available
+        """
+        # Try to get from request container first (can access REQUEST + APP scopes)
+        if hasattr(request.state, "dishka_container"):
+            container = request.state.dishka_container
+            return await container.get(dependency_type)
+
+        # Fallback to app container (APP scope only)
+        elif hasattr(request.app.state, "container"):
+            container = request.app.state.container
+            return await container.get(dependency_type)
+
+        else:
+            raise AttributeError("No dishka container found. Make sure dishka is properly set up with the app.")
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Any:
+        """
+        Process the request and response.
+
+        Override this method in your middleware to implement custom logic.
+        Use `await self.get_dependency(request, SomeClass)` to get dependencies.
+
+        Args:
+            request: The incoming request
+            call_next: Function to call the next middleware/endpoint
+
+        Returns:
+            The response object
+        """
+        # Default implementation just passes through
+        return await call_next(request)
