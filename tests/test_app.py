@@ -1,11 +1,11 @@
 import asyncio
 import time
-from dishka import Provider, FromDishka, provide, Scope
 
 import httpx
 import pytest
+from dishka import FromDishka, Provider, Scope, provide
 
-from fastapi_dishka import App, provide_router, provide_middleware, Middleware, APIRouter
+from fastapi_dishka import APIRouter, App, Middleware, provide_middleware, provide_router
 
 
 class Logger:

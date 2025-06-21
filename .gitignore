@@ -192,3 +192,10 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Super-linter outputs
+super-linter-output
+super-linter.log
+
+# GitHub Actions leftovers
+github_conf

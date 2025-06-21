@@ -1,15 +1,17 @@
 import asyncio
 import threading
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Type, Optional
+from typing import AsyncGenerator, Optional, Type
+
+import uvicorn
+from dishka import AsyncContainer, Provider, Scope, from_context, make_async_container
 from dishka.integrations.fastapi import setup_dishka
-from dishka import Provider, make_async_container, Scope, from_context, AsyncContainer
 from fastapi import FastAPI
 from starlette.datastructures import State
-import uvicorn
-from fastapi_dishka.providers import RouterCollectorProvider, MiddlewareCollectorProvider
-from fastapi_dishka.router import APIRouter
+
 from fastapi_dishka.middleware import Middleware
+from fastapi_dishka.providers import MiddlewareCollectorProvider, RouterCollectorProvider
+from fastapi_dishka.router import APIRouter
 
 
 @asynccontextmanager

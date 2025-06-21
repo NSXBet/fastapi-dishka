@@ -1,11 +1,11 @@
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
-from starlette.responses import Response
-from typing import Callable, TypeVar, Awaitable, Optional
-from fastapi import Request, FastAPI
-from starlette.datastructures import State
-from dishka import AsyncContainer
+from typing import Awaitable, Callable, Optional, TypeVar
 
+from dishka import AsyncContainer
+from fastapi import FastAPI, Request
+from starlette.datastructures import State
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
+from starlette.types import ASGIApp
 
 T = TypeVar("T")
 

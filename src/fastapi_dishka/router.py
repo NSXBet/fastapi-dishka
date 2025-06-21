@@ -1,6 +1,7 @@
-from fastapi import APIRouter as FastAPIRouter
-from dishka.integrations.fastapi import DishkaRoute
 from typing import Any
+
+from dishka.integrations.fastapi import DishkaRoute
+from fastapi import APIRouter as FastAPIRouter
 
 
 class APIRouter(FastAPIRouter):
