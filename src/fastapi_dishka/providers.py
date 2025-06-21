@@ -24,7 +24,6 @@ _middleware_registry: list[Type[Middleware]] = []
 def wrap_router(router: APIRouter) -> Callable[[], APIRouter]:
     """Wrap a router to be automatically collected by the app."""
 
-    @staticmethod
     def factory() -> APIRouter:
         return router
 
@@ -41,13 +40,12 @@ def provide_router(router: APIRouter) -> CompositeDependencySource:
     # Register the router in the global registry
     _router_registry.append(router)
 
-    return provide(source=wrap_router(router), scope=Scope.APP, provides=APIRouter)
+    return provide(source=wrap_router(router), scope=Scope.APP, provides=APIRouter)  # type: ignore[misc]
 
 
 def wrap_middleware(middleware_class: Type[MiddlewareT]) -> Callable[[], Type[Middleware]]:
     """Wrap a middleware class to be automatically collected by the app."""
 
-    @staticmethod
     def factory() -> Type[Middleware]:
         return middleware_class
 

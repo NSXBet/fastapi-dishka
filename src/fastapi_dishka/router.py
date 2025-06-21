@@ -4,7 +4,7 @@ from typing import Any
 
 
 class APIRouter(FastAPIRouter):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[explicit-any]
         """
         Initialize APIRouter with DishkaRoute as the default route class.
 
@@ -14,7 +14,8 @@ class APIRouter(FastAPIRouter):
                      with route_class defaulting to DishkaRoute for dependency injection.
         """
         # Set DishkaRoute as the default route class if not specified
-        if "route_class" not in kwargs:
-            kwargs["route_class"] = DishkaRoute
+        route_class_key: str = "route_class"
+        if route_class_key not in kwargs:  # type: ignore[misc]
+            kwargs[route_class_key] = DishkaRoute  # type: ignore[misc]
 
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)  # type: ignore[misc]

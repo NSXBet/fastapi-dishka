@@ -1,0 +1,221 @@
+# FastAPI-Dishka Project Development Rules
+
+## Core Philosophy
+
+- **100% Type Safety**: Strive for zero mypy errors, zero Any leakage to public APIs
+- **Incremental Problem Solving**: Don't over-engineer - fix issues incrementally as they arise
+- **Read Library Source**: Never assume external library limitations - investigate actual typing and capabilities
+- **Provider-First Design**: Make providers first-class citizens in the architecture
+
+## Type Safety Best Practices
+
+### DO: Systematic Type Fixing Approach
+
+1. **Explicit Type Annotations**: Always use explicit types for intermediate variables
+
+   ```python
+   container: AsyncContainer = app_state.container
+   app_state: State = app.state
+   ```
+
+2. **Proper Imports**: Import specific types from libraries
+
+   ```python
+   from dishka import AsyncContainer
+   from starlette.datastructures import State
+   ```
+
+3. **Strategic Assertions**: Help mypy's type narrowing
+
+   ```python
+   assert container is not None
+   ```
+
+4. **Read Library Source**: Understand actual library typing before assuming limitations
+
+### DON'T: Assume Library Limitations
+
+- ❌ Don't create complex compatibility modules without investigating
+- ❌ Don't accept "library returns Any" without checking actual typing
+- ❌ Don't over-engineer type isolation when targeted fixes work
+
+### Acceptable Type Ignores
+
+Only use `# type: ignore` for:
+
+- **Parameter Forwarding**: `*args: Any, **kwargs: Any` in wrapper classes
+- **External Library Types**: When external libs genuinely contain Any types
+- **Target Specific Codes**: Always specify error codes like `# type: ignore[misc]`
+
+## Dependency Injection Patterns
+
+### Auto-Registration Pattern
+
+```python
+# Global registries for collection
+_router_registry: list[APIRouter] = []
+_middleware_registry: list[Type[Middleware]] = []
+
+# Provide functions that register AND provide
+def provide_router(router: APIRouter) -> CompositeDependencySource:
+    _router_registry.append(router)
+    return provide(source=wrap_router(router), scope=Scope.APP, provides=APIRouter)
+
+# Collector providers that clean up after collection
+class RouterCollectorProvider(Provider):
+    def provide_routers(self) -> list[APIRouter]:
+        routers = _router_registry.copy()
+        _router_registry.clear()  # Clean up after collection
+        return routers
+```
+
+### Middleware with Dependency Injection
+
+```python
+class Middleware(BaseHTTPMiddleware):
+    async def get_dependency(self, request: Request, dependency_type: type[T]) -> T:
+        # Try request container first, fallback to app container
+        # Use explicit typing and assertions for type safety
+```
+
+## FastAPI + Dishka Integration
+
+### App Class Pattern
+
+- Encapsulate FastAPI app with dishka container management
+- Auto-register routers and middlewares from providers
+- Support both async and sync startup patterns
+- Proper container lifecycle management with lifespan handlers
+
+### Container Resolution
+
+- Always include collector providers automatically
+- Use proper context typing: `dict[type[App], App]`
+- Register middlewares before routers (Starlette requirement)
+
+## Development Workflow
+
+### Environment Setup
+
+```bash
+# ALWAYS use virtual environment first
+source .venv/bin/activate
+```
+
+### Linting Configuration
+
+- **ruff**: Fast, modern Python linter and formatter
+- **flake8**: Additional style checks with 120 char line length
+- **mypy**: Strict type checking with zero tolerance for Any leakage
+- **pyproject-flake8**: Keep all config in pyproject.toml
+
+### Testing Patterns
+
+```python
+# Async testing with proper container management
+@pytest.mark.asyncio
+async def test_feature():
+    app = App("test")
+    await app._resolve_container()  # Explicit container resolution
+    # Test logic here
+    await app.app.state.container.close()  # Cleanup
+
+# HTTP testing with TestClient
+def test_http_endpoint():
+    app = App("test", TestProvider())
+    app.start_sync(blocking=False)
+    try:
+        # Test HTTP calls
+    finally:
+        app.stop()  # Always cleanup
+```
+
+## Project Structure Best Practices
+
+### src/ Layout
+
+```
+src/fastapi_dishka/
+├── __init__.py          # Public API exports
+├── app.py              # Main App class
+├── router.py           # APIRouter wrapper with DishkaRoute
+├── middleware.py       # Base Middleware with DI support
+└── providers.py        # Auto-registration functions
+```
+
+### Import Organization
+
+- Group imports: standard library, third-party, local
+- Use explicit imports for types: `from typing import Type` not `from typing import *`
+- Import dishka types explicitly: `AsyncContainer`, not generic containers
+
+## Error Handling Patterns
+
+### Container Access
+
+```python
+# Explicit typing with fallback logic
+container: AsyncContainer
+if hasattr(request.state, "dishka_container"):
+    container = request.state.dishka_container
+    assert container is not None
+elif hasattr(app.state, "container"):
+    container = app.state.container
+    assert container is not None
+else:
+    raise AttributeError("No dishka container found")
+```
+
+### Startup/Shutdown
+
+- Use FastAPI lifespan handlers for container cleanup
+- Support both blocking and non-blocking server startup
+- Proper thread management for non-blocking mode
+
+## Code Quality Standards
+
+### Makefile Targets
+
+```makefile
+lint: ruff + flake8 + mypy (all must pass)
+format: black + isort (120 char line length)
+test: pytest with async support
+```
+
+### Coverage Requirements
+
+- Aim for >95% code coverage
+- Test both success and error paths
+- Include integration tests for DI functionality
+
+## Documentation Standards
+
+- Document all public APIs with detailed docstrings
+- Include Args, Returns, and Raises sections
+- Provide usage examples in docstrings
+- Keep README concise but comprehensive
+
+## Key Learnings from This Session
+
+1. **Type Safety is Achievable**: With systematic approach, even complex DI libraries can achieve 100% type safety
+2. **Read the Source**: External libraries often have better typing than assumed
+3. **Incremental > Over-engineering**: Targeted fixes beat complex abstraction layers
+4. **Testing Async DI**: Requires careful container lifecycle management
+5. **Provider Patterns**: Global registries + collector providers enable clean auto-registration
+6. **Middleware DI**: Can be achieved while maintaining Starlette compatibility
+
+## Anti-Patterns to Avoid
+
+❌ **Compatibility Modules**: Don't create abstraction layers for typing issues that can be fixed directly
+❌ **Assuming Any**: Don't accept library limitations without investigation  
+❌ **Manual Registration**: Auto-registration patterns are cleaner than manual router/middleware setup
+❌ **Ignoring Virtual Env**: Always activate .venv before any Python operations
+❌ **Sequential Tool Calls**: Use parallel tool execution when possible for efficiency
+
+## Success Metrics
+
+- ✅ All lint checks pass (ruff, flake8, mypy)
+- ✅ >95% test coverage
+- ✅ Zero Any types in public APIs
+- ✅ Clean auto-registration patterns
+- ✅ Full async support with proper cleanup

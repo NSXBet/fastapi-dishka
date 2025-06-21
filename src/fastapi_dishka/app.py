@@ -3,8 +3,9 @@ import threading
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Type, Optional
 from dishka.integrations.fastapi import setup_dishka
-from dishka import Provider, make_async_container, Scope, from_context
+from dishka import Provider, make_async_container, Scope, from_context, AsyncContainer
 from fastapi import FastAPI
+from starlette.datastructures import State
 import uvicorn
 from fastapi_dishka.providers import RouterCollectorProvider, MiddlewareCollectorProvider
 from fastapi_dishka.router import APIRouter
@@ -26,8 +27,11 @@ async def default_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     yield
     # Clean up dishka container on shutdown
-    if hasattr(app.state, "container"):
-        await app.state.container.close()
+    app_state: State = app.state
+    if hasattr(app_state, "container"):
+        container: AsyncContainer = app_state.container
+        assert container is not None
+        await container.close()
 
 
 class App:
@@ -71,11 +75,14 @@ class App:
             *self.providers,
         )
 
+        # Create context with proper typing
+        context: dict[type[App], App] = {
+            App: self,
+        }
+
         container = make_async_container(
             *all_providers,
-            context={
-                App: self,
-            },
+            context=context,
         )
 
         setup_dishka(container=container, app=self.app)

@@ -2,7 +2,10 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 from starlette.responses import Response
 from typing import Callable, TypeVar, Awaitable, Optional
-from fastapi import Request
+from fastapi import Request, FastAPI
+from starlette.datastructures import State
+from dishka import AsyncContainer
+
 
 T = TypeVar("T")
 
@@ -49,15 +52,30 @@ class Middleware(BaseHTTPMiddleware):
         Raises:
             AttributeError: If no container is available
         """
+
+        container: AsyncContainer
+
+        app: FastAPI = request.app
+        request_state: State = request.state
+        app_state: State = app.state
+
         # Try to get from request container first (can access REQUEST + APP scopes)
-        if hasattr(request.state, "dishka_container"):
-            container = request.state.dishka_container
-            return await container.get(dependency_type)
+        if hasattr(request_state, "dishka_container"):
+            container = request_state.dishka_container
+            assert container is not None
+
+            result = await container.get(dependency_type)
+
+            return result
 
         # Fallback to app container (APP scope only)
-        elif hasattr(request.app.state, "container"):
-            container = request.app.state.container
-            return await container.get(dependency_type)
+        elif hasattr(app_state, "container"):
+            container = app_state.container
+            assert container is not None
+
+            result = await container.get(dependency_type)
+
+            return result
 
         else:
             raise AttributeError("No dishka container found. Make sure dishka is properly set up with the app.")
