@@ -34,6 +34,7 @@ test-unit-html html:
 
 # Code quality commands
 lint:
+	ruff check src/ tests/
 	flake8 src/ tests/
 	mypy src/
 
