@@ -1,5 +1,7 @@
 from starlette.middleware.base import BaseHTTPMiddleware
-from typing import Callable, Any, TypeVar
+from starlette.types import ASGIApp
+from starlette.responses import Response
+from typing import Callable, TypeVar, Awaitable, Optional
 from fastapi import Request
 
 T = TypeVar("T")
@@ -15,15 +17,19 @@ class Middleware(BaseHTTPMiddleware):
     Use the `get_dependency()` method to resolve dependencies from the container.
     """
 
-    def __init__(self, app, **kwargs):
+    def __init__(
+        self,
+        app: ASGIApp,
+        dispatch: Optional[Callable[[Request, Callable[[Request], Awaitable[Response]]], Awaitable[Response]]] = None,
+    ) -> None:
         """
         Initialize the middleware.
 
         Args:
             app: The ASGI application
-            **kwargs: Additional keyword arguments passed to the parent class
+            dispatch: Optional custom dispatch function
         """
-        super().__init__(app, **kwargs)
+        super().__init__(app, dispatch=dispatch)
 
     async def get_dependency(self, request: Request, dependency_type: type[T]) -> T:
         """
@@ -56,7 +62,7 @@ class Middleware(BaseHTTPMiddleware):
         else:
             raise AttributeError("No dishka container found. Make sure dishka is properly set up with the app.")
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Any:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         """
         Process the request and response.
 

@@ -1,23 +1,37 @@
-from typing import Any, Callable, Type
+from typing import Callable, Type, TypeVar, Protocol
 from dishka.dependency_source import CompositeDependencySource
 from fastapi_dishka.router import APIRouter
+from fastapi_dishka.middleware import Middleware
 from dishka import provide, Scope, Provider
+
+# Type variable for middleware classes
+MiddlewareT = TypeVar("MiddlewareT", bound=Middleware)
+
+
+class MiddlewareClass(Protocol):
+    """Protocol for middleware classes that can be instantiated."""
+
+    def __call__(self, app: object, **kwargs: object) -> Middleware: ...
 
 
 # Global registry to collect routers
 _router_registry: list[APIRouter] = []
 
 # Global registry to collect middlewares
-_middleware_registry: list[Type[Any]] = []
+_middleware_registry: list[Type[Middleware]] = []
 
 
-def provide_router(router: APIRouter) -> (
-    CompositeDependencySource
-    | Callable[
-        [Callable[..., Any]],
-        CompositeDependencySource,
-    ]
-):
+def wrap_router(router: APIRouter) -> Callable[[], APIRouter]:
+    """Wrap a router to be automatically collected by the app."""
+
+    @staticmethod
+    def factory() -> APIRouter:
+        return router
+
+    return factory
+
+
+def provide_router(router: APIRouter) -> CompositeDependencySource:
     """
     Register a router to be automatically collected by the app.
 
@@ -27,21 +41,20 @@ def provide_router(router: APIRouter) -> (
     # Register the router in the global registry
     _router_registry.append(router)
 
-    # Create a factory that provides this specific router
+    return provide(source=wrap_router(router), scope=Scope.APP, provides=APIRouter)
+
+
+def wrap_middleware(middleware_class: Type[MiddlewareT]) -> Callable[[], Type[Middleware]]:
+    """Wrap a middleware class to be automatically collected by the app."""
+
     @staticmethod
-    def factory() -> APIRouter:
-        return router
+    def factory() -> Type[Middleware]:
+        return middleware_class
 
-    return provide(source=factory, scope=Scope.APP, provides=APIRouter)
+    return factory
 
 
-def provide_middleware(middleware_class: Type[Any]) -> (
-    CompositeDependencySource
-    | Callable[
-        [Callable[..., Any]],
-        CompositeDependencySource,
-    ]
-):
+def provide_middleware(middleware_class: Type[MiddlewareT]) -> CompositeDependencySource:
     """
     Register a middleware class to be automatically collected by the app.
 
@@ -54,12 +67,7 @@ def provide_middleware(middleware_class: Type[Any]) -> (
     # Register the middleware class in the global registry
     _middleware_registry.append(middleware_class)
 
-    # Create a factory that provides this specific middleware class
-    @staticmethod
-    def factory() -> Type[Any]:
-        return middleware_class
-
-    return provide(source=factory, scope=Scope.APP, provides=Type[Any])
+    return provide(source=wrap_middleware(middleware_class), scope=Scope.APP, provides=Type[Middleware])
 
 
 class RouterCollectorProvider(Provider):
@@ -88,7 +96,7 @@ class MiddlewareCollectorProvider(Provider):
     scope = Scope.APP
     component = "middlewares"
 
-    def provide_middlewares(self) -> list[Type[Any]]:
+    def provide_middlewares(self) -> list[Type[Middleware]]:
         """Provide the list of all registered middleware classes."""
         middlewares = _middleware_registry.copy()
 
