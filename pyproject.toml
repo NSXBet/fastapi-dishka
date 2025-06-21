@@ -36,6 +36,7 @@ dev = [
     "black>=23.9.0",
     "isort>=5.12.0",
     "flake8>=6.1.0",
+    "pyproject-flake8>=7.0.0",
     "mypy>=1.6.0",
     "mkdocs-material>=9.4.0",
     "mkdocstrings[python]>=0.24.0",
@@ -88,6 +89,10 @@ profile = "black"
 multi_line_output = 3
 line_length = 120
 known_first_party = ["fastapi_dishka"]
+
+[tool.flake8]
+max-line-length = 120
+extend-ignore = ["E203", "W503"]
 
 [tool.mypy]
 python_version = "3.13"

@@ -1,13 +1,15 @@
 import asyncio
 import threading
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Type, Any
-from dishka.integrations.fastapi import DishkaRoute, setup_dishka
-from dishka import Provider, make_async_container, Scope, from_context
+from typing import AsyncGenerator, Type, Optional
+from dishka.integrations.fastapi import setup_dishka
+from dishka import Provider, make_async_container, Scope, from_context, AsyncContainer
 from fastapi import FastAPI
+from starlette.datastructures import State
 import uvicorn
 from fastapi_dishka.providers import RouterCollectorProvider, MiddlewareCollectorProvider
 from fastapi_dishka.router import APIRouter
+from fastapi_dishka.middleware import Middleware
 
 
 @asynccontextmanager
@@ -25,8 +27,11 @@ async def default_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     yield
     # Clean up dishka container on shutdown
-    if hasattr(app.state, "container"):
-        await app.state.container.close()
+    app_state: State = app.state
+    if hasattr(app_state, "container"):
+        container: AsyncContainer = app_state.container
+        assert container is not None
+        await container.close()
 
 
 class App:
@@ -37,7 +42,7 @@ class App:
         *providers: Provider,
         summary: str = "",
         description: str = "",
-    ):
+    ) -> None:
         self.app = FastAPI(
             title=title,
             version=version,
@@ -48,12 +53,12 @@ class App:
 
         self.providers = providers
         self.routers: list[APIRouter] = []
-        self.middlewares: list[Type[Any]] = []
-        self._server = None
-        self._thread = None
+        self.middlewares: list[Type[Middleware]] = []
+        self._server: Optional[uvicorn.Server] = None
+        self._thread: Optional[threading.Thread] = None
         self._container_resolved = False
 
-    async def _resolve_container(self):
+    async def _resolve_container(self) -> None:
         """Resolve the container and register routers and middlewares."""
         if self._container_resolved:
             return
@@ -70,11 +75,14 @@ class App:
             *self.providers,
         )
 
+        # Create context with proper typing
+        context: dict[type[App], App] = {
+            App: self,
+        }
+
         container = make_async_container(
             *all_providers,
-            context={
-                App: self,
-            },
+            context=context,
         )
 
         setup_dishka(container=container, app=self.app)
@@ -83,7 +91,7 @@ class App:
 
         # Get the collected routers and middlewares
         self.routers = await container.get(list[APIRouter])
-        self.middlewares = await container.get(list[Type[Any]], component="middlewares")
+        self.middlewares = await container.get(list[Type[Middleware]], component="middlewares")
 
         # Register middlewares first (they need to be added before routes)
         for middleware_class in self.middlewares:
@@ -141,7 +149,7 @@ class App:
     def _start_non_blocking(self, host: str, port: int) -> None:
         """Start the server in a separate thread."""
 
-        def run_server():
+        def run_server() -> None:
             # Create a new event loop for this thread
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)

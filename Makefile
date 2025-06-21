@@ -34,7 +34,9 @@ test-unit-html html:
 
 # Code quality commands
 lint:
-	flake8 src/ tests/
+	ruff check src/ tests/ --fix 
+	ruff check src/ tests/
+	pflake8 --max-line-length 120 src/ tests/
 	mypy src/
 
 format:
