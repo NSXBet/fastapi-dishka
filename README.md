@@ -1,5 +1,12 @@
 # 🚀 fastapi-dishka
 
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/fastapi_dishka)](https://pypi.org/project/fastapi-dishka/)
+[![PyPI - Wheel](https://img.shields.io/pypi/wheel/fastapi_dishka)](https://pypi.org/project/fastapi-dishka/)
+[![PyPI - Status](https://img.shields.io/pypi/status/fastapi_dishka)](https://pypi.org/project/fastapi-dishka/)
+[![PyPI - License](https://img.shields.io/pypi/l/fastapi_dishka)](https://pypi.org/project/fastapi-dishka/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/fastapi_dishka)](https://pypi.org/project/fastapi-dishka/)
+[![PyPI - Version](https://img.shields.io/pypi/v/fastapi_dishka)](https://pypi.org/project/fastapi-dishka/)
+[![PyPI - Format](https://img.shields.io/pypi/format/fastapi_dishka)](https://pypi.org/project/fastapi-dishka/)
 [![codecov](https://codecov.io/gh/NSXBet/fastapi-dishka/graph/badge.svg?token=83VQ7PMJ1L)](https://codecov.io/gh/NSXBet/fastapi-dishka)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.68+-00a393.svg)](https://fastapi.tiangolo.com/)
