@@ -30,7 +30,7 @@ test-unit unit:
 	pytest --ignore=tests/test_examples_script.py
 
 test-unit-html html:
-	pytest --cov=nsf --cov-report=html --cov-report=term-missing
+	pytest --cov=fastapi_dishka --cov-report=html --cov-report=term-missing
 
 # Code quality commands
 lint:

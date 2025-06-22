@@ -1,8 +1,10 @@
-from typing import Callable, Type, TypeVar, Protocol
+from typing import Callable, Protocol, Type, TypeVar
+
+from dishka import Provider, Scope, provide
 from dishka.dependency_source import CompositeDependencySource
-from fastapi_dishka.router import APIRouter
+
 from fastapi_dishka.middleware import Middleware
-from dishka import provide, Scope, Provider
+from fastapi_dishka.router import APIRouter
 
 # Type variable for middleware classes
 MiddlewareT = TypeVar("MiddlewareT", bound=Middleware)
