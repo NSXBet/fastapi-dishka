@@ -1,15 +1,18 @@
 """Tests for fastapi_dishka.providers module."""
 
-from dishka import Scope
-from dishka.dependency_source import CompositeDependencySource
+import pytest
+from dishka import Provider, Scope
+from fastapi.testclient import TestClient
 
-from fastapi_dishka import APIRouter, Middleware, provide_middleware, provide_router
+from fastapi_dishka import APIRouter, Middleware, provide_middleware, provide_router, start_test, stop_test
+from fastapi_dishka.app import App
 from fastapi_dishka.providers import (
     MiddlewareCollectorProvider,
+    ProviderMeta,
     RouterCollectorProvider,
     _clear_all_registries,
-    _middleware_registry,
-    _router_registry,
+    _collect_middlewares_from_providers,
+    _collect_routers_from_providers,
     wrap_middleware,
     wrap_router,
 )
@@ -35,22 +38,27 @@ class TestProvideRouter:
         """Test that provide_router returns a CompositeDependencySource."""
         router = APIRouter(prefix="/test")
 
-        result = provide_router(router)
+        # Create a temporary provider to test provide_router functionality
+        class TestProvider(Provider, metaclass=ProviderMeta):
+            scope = Scope.APP
+            test_router = provide_router(router)
 
-        assert isinstance(result, CompositeDependencySource)
+        # Verify that the provider was created and has the router
+        assert hasattr(TestProvider, "_provided_routers")
+        assert len(TestProvider._provided_routers) == 1  # type: ignore[attr-defined]
+        assert TestProvider._provided_routers[0] is router  # type: ignore[attr-defined]
 
-    def test_provide_router_registers_router_in_global_registry(self):
-        """Test that provide_router adds router to global registry."""
+    def test_provide_router_outside_provider_class_raises_error(self):
+        """Test that provide_router raises RuntimeError when called outside Provider class."""
         router = APIRouter(prefix="/test")
 
-        # Registry should be empty initially
-        assert len(_router_registry) == 0
+        with pytest.raises(RuntimeError) as exc_info:
+            provide_router(router)
 
-        provide_router(router)
-
-        # Router should be registered
-        assert len(_router_registry) == 1
-        assert _router_registry[0] is router
+        error_message = str(exc_info.value)
+        assert "provide_router() can only be called within a Provider class definition" in error_message
+        assert "This prevents router stealing" in error_message
+        assert "ProviderMeta as metaclass" in error_message
 
     def test_wrap_router_returns_factory_function(self):
         """Test that wrap_router returns a function that returns the router."""
@@ -75,20 +83,26 @@ class TestProvideMiddleware:
 
     def test_provide_middleware_returns_composite_dependency_source(self):
         """Test that provide_middleware returns a CompositeDependencySource."""
-        result = provide_middleware(MiddlewareExample)
 
-        assert isinstance(result, CompositeDependencySource)
+        # Create a temporary provider to test provide_middleware functionality
+        class TestProvider(Provider, metaclass=ProviderMeta):
+            scope = Scope.APP
+            test_middleware = provide_middleware(MiddlewareExample)
 
-    def test_provide_middleware_registers_middleware_in_global_registry(self):
-        """Test that provide_middleware adds middleware to global registry."""
-        # Registry should be empty initially
-        assert len(_middleware_registry) == 0
+        # Verify that the provider was created and has the middleware
+        assert hasattr(TestProvider, "_provided_middlewares")
+        assert len(TestProvider._provided_middlewares) == 1  # type: ignore[attr-defined]
+        assert TestProvider._provided_middlewares[0] is MiddlewareExample  # type: ignore[attr-defined]
 
-        provide_middleware(MiddlewareExample)
+    def test_provide_middleware_outside_provider_class_raises_error(self):
+        """Test that provide_middleware raises RuntimeError when called outside Provider class."""
+        with pytest.raises(RuntimeError) as exc_info:
+            provide_middleware(MiddlewareExample)
 
-        # Middleware should be registered
-        assert len(_middleware_registry) == 1
-        assert _middleware_registry[0] is MiddlewareExample
+        error_message = str(exc_info.value)
+        assert "provide_middleware() can only be called within a Provider class definition" in error_message
+        assert "This prevents middleware stealing" in error_message
+        assert "ProviderMeta as metaclass" in error_message
 
     def test_wrap_middleware_returns_factory_function(self):
         """Test that wrap_middleware returns a function that returns the middleware class."""
@@ -105,62 +119,37 @@ class TestProvideMiddleware:
 class TestRouterCollectorProvider:
     """Test the RouterCollectorProvider."""
 
-    def setup_method(self):
-        """Clear all registries before each test."""
-        _clear_all_registries()
-
-    def test_provide_routers_returns_copy_of_registry(self):
-        """Test that provide_routers returns a copy of registered routers."""
+    def test_provide_routers_returns_provided_routers(self):
+        """Test that provide_routers returns the routers provided to the constructor."""
         router1 = APIRouter(prefix="/test1")
         router2 = APIRouter(prefix="/test2")
 
-        # Register routers
-        _router_registry.extend([router1, router2])
-
-        provider = RouterCollectorProvider()
+        provider = RouterCollectorProvider([router1, router2])
         routers = provider.provide_routers()
 
-        # Should return the registered routers
+        # Should return the provided routers
         assert len(routers) == 2
         assert router1 in routers
         assert router2 in routers
 
-    def test_provide_routers_clears_registry_after_collection(self):
-        """Test that provide_routers clears the registry after collecting."""
-        router = APIRouter(prefix="/test")
-
-        # Register router
-        _router_registry.append(router)
-        assert len(_router_registry) == 1
-
-        provider = RouterCollectorProvider()
-        provider.provide_routers()
-
-        # Registry should be cleared
-        assert len(_router_registry) == 0
-
-    def test_provide_routers_with_empty_registry(self):
-        """Test that provide_routers returns empty list when registry is empty."""
-        provider = RouterCollectorProvider()
+    def test_provide_routers_with_empty_list(self):
+        """Test that provide_routers returns empty list when given empty list."""
+        provider = RouterCollectorProvider([])
         routers = provider.provide_routers()
 
         assert routers == []
 
     def test_provider_has_correct_scope(self):
         """Test that RouterCollectorProvider has APP scope."""
-        provider = RouterCollectorProvider()
+        provider = RouterCollectorProvider([])
         assert provider.scope == Scope.APP
 
 
 class TestMiddlewareCollectorProvider:
     """Test the MiddlewareCollectorProvider."""
 
-    def setup_method(self):
-        """Clear all registries before each test."""
-        _clear_all_registries()
-
-    def test_provide_middlewares_returns_copy_of_registry(self):
-        """Test that provide_middlewares returns a copy of registered middlewares."""
+    def test_provide_middlewares_returns_provided_middlewares(self):
+        """Test that provide_middlewares returns the middlewares provided to the constructor."""
 
         class TestMiddleware1(Middleware):
             pass
@@ -168,72 +157,57 @@ class TestMiddlewareCollectorProvider:
         class TestMiddleware2(Middleware):
             pass
 
-        # Register middlewares
-        _middleware_registry.extend([TestMiddleware1, TestMiddleware2])
-
-        provider = MiddlewareCollectorProvider()
+        provider = MiddlewareCollectorProvider([TestMiddleware1, TestMiddleware2])
         middlewares = provider.provide_middlewares()
 
-        # Should return the registered middlewares
+        # Should return the provided middlewares
         assert len(middlewares) == 2
         assert TestMiddleware1 in middlewares
         assert TestMiddleware2 in middlewares
 
-    def test_provide_middlewares_clears_registry_after_collection(self):
-        """Test that provide_middlewares clears the registry after collecting."""
-        # Register middleware
-        _middleware_registry.append(MiddlewareExample)
-        assert len(_middleware_registry) == 1
-
-        provider = MiddlewareCollectorProvider()
-        provider.provide_middlewares()
-
-        # Registry should be cleared
-        assert len(_middleware_registry) == 0
-
-    def test_provide_middlewares_with_empty_registry(self):
-        """Test that provide_middlewares returns empty list when registry is empty."""
-        provider = MiddlewareCollectorProvider()
+    def test_provide_middlewares_with_empty_list(self):
+        """Test that provide_middlewares returns empty list when given empty list."""
+        provider = MiddlewareCollectorProvider([])
         middlewares = provider.provide_middlewares()
 
         assert middlewares == []
 
     def test_provider_has_correct_scope_and_component(self):
         """Test that MiddlewareCollectorProvider has APP scope and middlewares component."""
-        provider = MiddlewareCollectorProvider()
+        provider = MiddlewareCollectorProvider([])
         assert provider.scope == Scope.APP
         assert provider.component == "middlewares"
 
 
-class TestConcurrentAccess:
-    """Test that multiple providers don't interfere with each other."""
+class TestCollectorFunctions:
+    """Test the router and middleware collection functions."""
 
     def setup_method(self):
         """Clear all registries before each test."""
         _clear_all_registries()
 
-    def test_multiple_router_registrations_dont_interfere(self):
-        """Test that multiple router registrations don't interfere."""
+    def test_collect_routers_from_providers_with_metaclass(self):
+        """Test that _collect_routers_from_providers extracts routers from provider classes."""
         router1 = APIRouter(prefix="/test1")
         router2 = APIRouter(prefix="/test2")
 
-        # Register routers from different "providers"
-        provide_router(router1)
-        provide_router(router2)
+        class ProviderA(Provider, metaclass=ProviderMeta):
+            scope = Scope.APP
+            router_a = provide_router(router1)
 
-        # Collect them
-        provider = RouterCollectorProvider()
-        routers = provider.provide_routers()
+        class ProviderB(Provider, metaclass=ProviderMeta):
+            scope = Scope.APP
+            router_b = provide_router(router2)
+
+        providers = (ProviderA(), ProviderB())
+        routers = _collect_routers_from_providers(providers)
 
         assert len(routers) == 2
         assert router1 in routers
         assert router2 in routers
 
-        # Registry should be cleared
-        assert len(_router_registry) == 0
-
-    def test_multiple_middleware_registrations_dont_interfere(self):
-        """Test that multiple middleware registrations don't interfere."""
+    def test_collect_middlewares_from_providers_with_metaclass(self):
+        """Test that _collect_middlewares_from_providers extracts middlewares from provider classes."""
 
         class TestMiddleware1(Middleware):
             pass
@@ -241,44 +215,177 @@ class TestConcurrentAccess:
         class TestMiddleware2(Middleware):
             pass
 
-        # Register middlewares from different "providers"
-        provide_middleware(TestMiddleware1)
-        provide_middleware(TestMiddleware2)
+        class ProviderA(Provider, metaclass=ProviderMeta):
+            scope = Scope.APP
+            middleware_a = provide_middleware(TestMiddleware1)
 
-        # Collect them
-        provider = MiddlewareCollectorProvider()
-        middlewares = provider.provide_middlewares()
+        class ProviderB(Provider, metaclass=ProviderMeta):
+            scope = Scope.APP
+            middleware_b = provide_middleware(TestMiddleware2)
+
+        providers = (ProviderA(), ProviderB())
+        middlewares = _collect_middlewares_from_providers(providers)
 
         assert len(middlewares) == 2
         assert TestMiddleware1 in middlewares
         assert TestMiddleware2 in middlewares
 
-        # Registry should be cleared
-        assert len(_middleware_registry) == 0
 
-    def test_router_and_middleware_registries_are_independent(self):
-        """Test that router and middleware registries don't affect each other."""
-        router = APIRouter(prefix="/test")
+@pytest.mark.asyncio
+async def test_provider_isolation_only_injected_providers_register_routers():
+    """Test that only routers from actually injected providers get registered."""
+    # Clear registries to ensure clean state
+    _clear_all_registries()
 
-        # Register router and middleware
-        provide_router(router)
-        provide_middleware(MiddlewareExample)
+    # Create two separate routers
+    router_a = APIRouter(prefix="/api-a")
+    router_b = APIRouter(prefix="/api-b")
 
-        # Collect only routers
-        router_provider = RouterCollectorProvider()
-        routers = router_provider.provide_routers()
+    @router_a.get("/route-1")
+    async def route_1():
+        return {"route": "1", "provider": "A"}
 
-        # Only router registry should be cleared
-        assert len(routers) == 1
-        assert routers[0] is router
-        assert len(_router_registry) == 0
-        assert len(_middleware_registry) == 1  # Middleware still there
+    @router_b.get("/route-2")
+    async def route_2():
+        return {"route": "2", "provider": "B"}
 
-        # Now collect middlewares
-        middleware_provider = MiddlewareCollectorProvider()
-        middlewares = middleware_provider.provide_middlewares()
+    # Create two separate providers
+    class ProviderA(Provider, metaclass=ProviderMeta):
+        scope = Scope.APP
+        api_router_a = provide_router(router_a)
 
-        # Now middleware registry should be cleared
-        assert len(middlewares) == 1
-        assert middlewares[0] is MiddlewareExample
-        assert len(_middleware_registry) == 0
+    class ProviderB(Provider, metaclass=ProviderMeta):
+        scope = Scope.APP
+        api_router_b = provide_router(router_b)
+
+    # Test 1: App with only ProviderA should have route-1 but not route-2
+    app_a = App("Test A", "1.0.0", ProviderA())
+
+    try:
+        await start_test(app_a, port=9991)
+        client_a = TestClient(app_a.app)
+
+        # Should have route-1 from ProviderA
+        response_1 = client_a.get("/api-a/route-1")
+        assert response_1.status_code == 200
+        data_1 = response_1.json()
+        assert data_1["route"] == "1"
+        assert data_1["provider"] == "A"
+
+        # Should NOT have route-2 from ProviderB (404)
+        response_2 = client_a.get("/api-b/route-2")
+        assert response_2.status_code == 404
+
+    finally:
+        await stop_test(app_a)
+
+    # Test 2: App with only ProviderB should have route-2 but not route-1
+    app_b = App("Test B", "1.0.0", ProviderB())
+
+    try:
+        await start_test(app_b, port=9992)
+        client_b = TestClient(app_b.app)
+
+        # Should have route-2 from ProviderB
+        response_2 = client_b.get("/api-b/route-2")
+        assert response_2.status_code == 200
+        data_2 = response_2.json()
+        assert data_2["route"] == "2"
+        assert data_2["provider"] == "B"
+
+        # Should NOT have route-1 from ProviderA (404)
+        response_1 = client_b.get("/api-a/route-1")
+        assert response_1.status_code == 404
+
+    finally:
+        await stop_test(app_b)
+
+    # Test 3: App with both providers should have both routes
+    app_both = App("Test Both", "1.0.0", ProviderA(), ProviderB())
+
+    try:
+        await start_test(app_both, port=9993)
+        client_both = TestClient(app_both.app)
+
+        # Should have both routes
+        response_1 = client_both.get("/api-a/route-1")
+        assert response_1.status_code == 200
+        data_1 = response_1.json()
+        assert data_1["route"] == "1"
+        assert data_1["provider"] == "A"
+
+        response_2 = client_both.get("/api-b/route-2")
+        assert response_2.status_code == 200
+        data_2 = response_2.json()
+        assert data_2["route"] == "2"
+        assert data_2["provider"] == "B"
+
+    finally:
+        await stop_test(app_both)
+
+
+class TestSecurityEnforcement:
+    """Test that security enforcement prevents provide function misuse."""
+
+    def setup_method(self):
+        """Clear all registries before each test."""
+        _clear_all_registries()
+
+    def test_provide_functions_work_inside_provider_classes(self):
+        """Test that provide functions work correctly when called inside Provider classes."""
+        router = APIRouter(prefix="/secure")
+
+        class TestMiddleware(Middleware):
+            async def dispatch(self, request, call_next):
+                return await call_next(request)
+
+        # This should work without any errors
+        class SecureProvider(Provider, metaclass=ProviderMeta):
+            scope = Scope.APP
+            secure_router = provide_router(router)
+            secure_middleware = provide_middleware(TestMiddleware)
+
+        # Verify both router and middleware were registered
+        assert len(SecureProvider._provided_routers) == 1  # type: ignore[attr-defined]
+        assert SecureProvider._provided_routers[0] is router  # type: ignore[attr-defined]
+        assert len(SecureProvider._provided_middlewares) == 1  # type: ignore[attr-defined]
+        assert SecureProvider._provided_middlewares[0] is TestMiddleware  # type: ignore[attr-defined]
+
+    def test_provide_functions_fail_outside_provider_classes(self):
+        """Test that provide functions fail when called outside Provider classes."""
+        router = APIRouter(prefix="/insecure")
+
+        class TestMiddleware(Middleware):
+            async def dispatch(self, request, call_next):
+                return await call_next(request)
+
+        # Both should raise RuntimeError when called outside Provider classes
+        with pytest.raises(RuntimeError, match="provide_router.*can only be called within a Provider class"):
+            provide_router(router)
+
+        with pytest.raises(RuntimeError, match="provide_middleware.*can only be called within a Provider class"):
+            provide_middleware(TestMiddleware)
+
+    def test_no_router_stealing_after_failed_outside_calls(self):
+        """Test that failed outside calls don't cause router stealing in subsequent providers."""
+        router_legitimate = APIRouter(prefix="/legitimate")
+        router_attempted_steal = APIRouter(prefix="/steal-attempt")
+
+        # First, create a legitimate provider
+        class LegitimateProvider(Provider, metaclass=ProviderMeta):
+            scope = Scope.APP
+            router = provide_router(router_legitimate)
+
+        # Attempt to call provide_router outside (should fail)
+        with pytest.raises(RuntimeError):
+            provide_router(router_attempted_steal)
+
+        # Create another provider - it should NOT get the attempted steal router
+        class VictimProvider(Provider, metaclass=ProviderMeta):
+            scope = Scope.APP
+            # No routers defined
+
+        # Verify no stealing occurred
+        assert len(LegitimateProvider._provided_routers) == 1  # type: ignore[attr-defined]
+        assert LegitimateProvider._provided_routers[0] is router_legitimate  # type: ignore[attr-defined]
+        assert len(VictimProvider._provided_routers) == 0  # type: ignore[attr-defined]

@@ -10,9 +10,9 @@ This example shows how to:
 """
 
 import asyncio
-from dishka import Provider, FromDishka, provide, Scope
+from dishka import FromDishka, provide, Scope
 
-from fastapi_dishka import App, provide_router, APIRouter
+from fastapi_dishka import App, provide_router, APIRouter, Provider
 
 
 class Logger:
@@ -104,20 +104,18 @@ class CoreProvider(Provider):
     logger = provide(Logger, scope=Scope.APP)
 
 
-class UsersProvider(Provider):
+class UserProvider(Provider):
     """Provider for user-related dependencies."""
 
     scope = Scope.APP
-
     user_service = provide(UserService, scope=Scope.APP)
     users_router = provide_router(users_router)
 
 
-class ProductsProvider(Provider):
+class ProductProvider(Provider):
     """Provider for product-related dependencies."""
 
     scope = Scope.APP
-
     product_service = provide(ProductService, scope=Scope.APP)
     products_router = provide_router(products_router)
 
@@ -129,8 +127,8 @@ async def main():
         "FastAPI-Dishka Example",
         "1.0.0",
         CoreProvider(),
-        UsersProvider(),
-        ProductsProvider(),
+        UserProvider(),
+        ProductProvider(),
         description="Example showing auto-router registration with Dishka dependency injection",
     )
 

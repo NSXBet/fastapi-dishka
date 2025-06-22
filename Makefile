@@ -1,5 +1,5 @@
 .PHONY: all
-all: setup test-unit test-examples lint format docs-build
+all: setup test-unit test-examples lint format
 
 # Default help command
 .PHONY: help
@@ -13,9 +13,6 @@ help:
 	@echo "lint           - Run linting (flake8, mypy)"
 	@echo "format         - Format code (black, isort)"
 	@echo "clean          - Clean build artifacts"
-	@echo "docs           - Build and serve documentation"
-	@echo "docs-build     - Build documentation"
-	@echo "docs-serve     - Serve documentation locally"
 
 # Installation commands
 .PHONY: install
@@ -23,14 +20,17 @@ install:
 	pip install -e .[dev]
 
 # Testing commands
-.PHONY: test test-unit test-examples test-examples-verbose test-cov
-test: test-unit test-examples-verbose
+.PHONY: test test-unit test-examples test-cov
+test: test-unit test-examples
 
 test-unit unit:
 	pytest --ignore=tests/test_examples_script.py
 
 test-unit-html html:
 	pytest --cov=fastapi_dishka --cov-report=html --cov-report=term-missing
+
+test-examples:
+	pytest examples/docs/06_testing.py
 
 # Code quality commands
 lint:
@@ -57,12 +57,3 @@ clean:
 setup: install
 	@echo "Development environment setup complete!"
 	@echo "Run 'make test' to verify everything works."
-
-# Documentation commands
-docs: docs-serve
-
-docs-build:
-	mkdocs build
-
-docs-serve:
-	mkdocs serve 

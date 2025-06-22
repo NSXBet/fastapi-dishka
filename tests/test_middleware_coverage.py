@@ -1,7 +1,8 @@
 """Simple focused tests to improve middleware.py coverage."""
 
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import Mock, AsyncMock
 from starlette.responses import Response
 
 from fastapi_dishka import Middleware

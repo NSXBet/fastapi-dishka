@@ -10,8 +10,8 @@ Usage:
 import asyncio
 import pytest
 from fastapi.testclient import TestClient
-from dishka import Provider, Scope, provide, FromDishka
-from fastapi_dishka import App, APIRouter, provide_router, start_test, stop_test, test
+from dishka import Scope, provide, FromDishka
+from fastapi_dishka import App, APIRouter, provide_router, start_test, stop_test, test, Provider
 
 
 # Let's see the typical hello world example you'd expect in every open source project!
