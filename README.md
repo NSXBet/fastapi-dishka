@@ -9,7 +9,6 @@
 [![codecov](https://codecov.io/gh/NSXBet/fastapi-dishka/graph/badge.svg?token=83VQ7PMJ1L)](https://codecov.io/gh/NSXBet/fastapi-dishka)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.68+-00a393.svg)](https://fastapi.tiangolo.com/)
-[![Tests](https://img.shields.io/badge/tests-91%25%20coverage-brightgreen.svg)](https://github.com/NSXBet/fastapi-dishka)
 
 > 🍽️ **Serve your FastAPI dependencies with style!** A delightful integration between FastAPI and Dishka that makes dependency injection feel like a five-star dining experience.
 
