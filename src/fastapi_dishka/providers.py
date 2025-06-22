@@ -22,6 +22,18 @@ _router_registry: list[APIRouter] = []
 # Global registry to collect middlewares
 _middleware_registry: list[Type[Middleware]] = []
 
+# Backup registries that persist across tests (never cleared)
+_router_backup: list[APIRouter] = []
+_middleware_backup: list[Type[Middleware]] = []
+
+
+def _clear_all_registries() -> None:
+    """Clear all registries for testing purposes."""
+    _router_registry.clear()
+    _middleware_registry.clear()
+    _router_backup.clear()
+    _middleware_backup.clear()
+
 
 def wrap_router(router: APIRouter) -> Callable[[], APIRouter]:
     """Wrap a router to be automatically collected by the app."""
@@ -40,8 +52,13 @@ def provide_router(router: APIRouter) -> CompositeDependencySource:
     This function registers the router in a global registry and creates
     a dependency source that the app can use to collect all routers.
     """
-    # Register the router in the global registry
-    _router_registry.append(router)
+    # Register the router in the global registry (avoid duplicates by object identity)
+    if not any(router is r for r in _router_registry):
+        _router_registry.append(router)
+
+    # Also store in backup registry (never cleared)
+    if not any(router is r for r in _router_backup):
+        _router_backup.append(router)
 
     return provide(source=wrap_router(router), scope=Scope.APP, provides=APIRouter)  # type: ignore[misc]
 
@@ -66,8 +83,13 @@ def provide_middleware(middleware_class: Type[MiddlewareT]) -> CompositeDependen
     Args:
         middleware_class: The middleware class to register (should inherit from fastapi_dishka.Middleware)
     """
-    # Register the middleware class in the global registry
-    _middleware_registry.append(middleware_class)
+    # Register the middleware class in the global registry (avoid duplicates by object identity)
+    if not any(middleware_class is m for m in _middleware_registry):
+        _middleware_registry.append(middleware_class)
+
+    # Also store in backup registry (never cleared)
+    if not any(middleware_class is m for m in _middleware_backup):
+        _middleware_backup.append(middleware_class)
 
     return provide(source=wrap_middleware(middleware_class), scope=Scope.APP, provides=Type[Middleware])
 
@@ -82,7 +104,6 @@ class RouterCollectorProvider(Provider):
     def provide_routers(self) -> list[APIRouter]:
         """Provide the list of all registered routers."""
         routers = _router_registry.copy()
-
         _router_registry.clear()
 
         return routers
@@ -101,7 +122,6 @@ class MiddlewareCollectorProvider(Provider):
     def provide_middlewares(self) -> list[Type[Middleware]]:
         """Provide the list of all registered middleware classes."""
         middlewares = _middleware_registry.copy()
-
         _middleware_registry.clear()
 
         return middlewares

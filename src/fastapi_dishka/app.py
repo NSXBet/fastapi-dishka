@@ -169,3 +169,10 @@ class App:
             self._server.should_exit = True
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=10)
+
+    async def close(self) -> None:
+        """Close the dishka container and cleanup resources."""
+        if hasattr(self.app.state, "container"):
+            container: AsyncContainer = self.app.state.container
+            if container is not None:
+                await container.close()

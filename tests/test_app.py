@@ -4,8 +4,9 @@ import time
 import httpx
 import pytest
 from dishka import FromDishka, Provider, Scope, provide
+from fastapi.testclient import TestClient
 
-from fastapi_dishka import APIRouter, App, Middleware, provide_middleware, provide_router
+from fastapi_dishka import APIRouter, App, Middleware, provide_middleware, provide_router, start_test, stop_test, test
 
 
 class Logger:
@@ -33,6 +34,9 @@ class Service:
     def increment(self):
         self.counter += 1
         self.logger.info(f"Counter incremented to {self.counter}")
+
+    def greet(self, name: str) -> str:
+        return f"Hello, {name}!"
 
 
 class CounterHeaderMiddleware(Middleware):
@@ -240,3 +244,115 @@ async def test_app_can_auto_wire_middleware_with_dependency_injection():
     finally:
         # Stop the server
         app.stop()
+
+
+@pytest.mark.asyncio
+async def test_start_and_stop_test_utilities():
+    """Test the start_test() and stop_test() utilities work correctly."""
+
+    class TestUtilitiesProvider(Provider):
+        service = provide(Service, scope=Scope.APP)
+        hello_router = provide_router(router)
+
+    app = App("Test API", "1.0.0", LoggerProvider(), TestUtilitiesProvider())
+
+    try:
+        # Test start_test utility
+        returned_app = await start_test(app, port=9998)
+        assert returned_app is app  # Should return the same app instance
+
+        # Test that the app is working
+        client = TestClient(app.app)
+        response = client.get("/router/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["message"] == "Hello, World!"
+
+    finally:
+        # Test stop_test utility
+        await stop_test(app)
+
+
+@pytest.mark.asyncio
+async def test_context_manager_utility():
+    """Test the test() context manager utility works correctly."""
+
+    class TestContextProvider(Provider):
+        service = provide(Service, scope=Scope.APP)
+        hello_router = provide_router(router)
+
+    app = App("Test Context API", "1.0.0", LoggerProvider(), TestContextProvider())
+
+    # Test the context manager
+    async with test(app, port=9997) as test_app:
+        assert test_app is app  # Should yield the same app instance
+
+        # Test that the app is working
+        client = TestClient(test_app.app)
+        response = client.get("/router/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["message"] == "Hello, World!"
+
+
+# Global provider to test reuse across multiple tests
+class SharedTestProvider(Provider):
+    scope = Scope.APP
+    service = provide(Service, scope=Scope.APP)
+    hello_router = provide_router(router)
+
+
+# Clear only main registries for app tests, leave backups for cross-module provider reuse
+def setup_module():
+    """Clear main registries at the start of this test module."""
+    from fastapi_dishka.providers import _router_registry, _middleware_registry
+
+    _router_registry.clear()
+    _middleware_registry.clear()
+
+
+@pytest.mark.asyncio
+async def test_shared_provider_first_test():
+    """Test using a shared provider - first test should work."""
+    app = App("Shared Test 1", "1.0.0", LoggerProvider(), SharedTestProvider())
+
+    async with test(app) as test_app:
+        client = TestClient(test_app.app)
+        response = client.get("/router/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["message"] == "Hello, World!"
+
+
+@pytest.mark.asyncio
+async def test_shared_provider_second_test():
+    """Test using the same shared provider - second test should also work thanks to backup registry."""
+    app = App("Shared Test 2", "1.0.0", LoggerProvider(), SharedTestProvider())
+
+    async with test(app) as test_app:
+        client = TestClient(test_app.app)
+        response = client.get("/router/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["message"] == "Hello, World!"
+
+
+@pytest.mark.asyncio
+async def test_shared_provider_third_test_with_start_stop():
+    """Test using the same shared provider with start_test/stop_test pattern."""
+    app = App("Shared Test 3", "1.0.0", LoggerProvider(), SharedTestProvider())
+
+    try:
+        await start_test(app, port=9995)
+        client = TestClient(app.app)
+        response = client.get("/router/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["message"] == "Hello, World!"
+    finally:
+        await stop_test(app)

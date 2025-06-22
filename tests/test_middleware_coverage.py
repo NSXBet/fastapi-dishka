@@ -7,7 +7,7 @@ from starlette.responses import Response
 from fastapi_dishka import Middleware
 
 
-class TestServiceForMiddleware:
+class ServiceForMiddleware:
     """Test service for dependency injection testing."""
 
     def __init__(self):
@@ -46,7 +46,7 @@ class TestGetDependencyErrorHandling:
 
         # Should raise AttributeError (lines 64-69)
         with pytest.raises(AttributeError, match="No dishka container found"):
-            await middleware.get_dependency(mock_request, TestServiceForMiddleware)
+            await middleware.get_dependency(mock_request, ServiceForMiddleware)
 
     @pytest.mark.asyncio
     async def test_get_dependency_falls_back_to_app_container(self):
@@ -70,7 +70,7 @@ class TestGetDependencyErrorHandling:
         mock_app.state = AppState()
 
         # Set up app container response
-        test_service = TestServiceForMiddleware()
+        test_service = ServiceForMiddleware()
         mock_app.state.container.get.return_value = test_service
 
         # Verify request container doesn't exist but app container does
@@ -78,10 +78,10 @@ class TestGetDependencyErrorHandling:
         assert hasattr(mock_app.state, "container")
 
         # Should use app container fallback (line 81)
-        result = await middleware.get_dependency(mock_request, TestServiceForMiddleware)
+        result = await middleware.get_dependency(mock_request, ServiceForMiddleware)
 
         assert result is test_service
-        mock_app.state.container.get.assert_called_once_with(TestServiceForMiddleware)
+        mock_app.state.container.get.assert_called_once_with(ServiceForMiddleware)
 
 
 class TestDefaultDispatchBehavior:
@@ -130,7 +130,7 @@ class TestContainerAssertions:
 
         # Should raise AssertionError due to None container
         with pytest.raises(AssertionError):
-            await middleware.get_dependency(mock_request, TestServiceForMiddleware)
+            await middleware.get_dependency(mock_request, ServiceForMiddleware)
 
     @pytest.mark.asyncio
     async def test_middleware_app_container_assertion_with_none(self):
@@ -154,4 +154,4 @@ class TestContainerAssertions:
 
         # Should raise AssertionError due to None app container
         with pytest.raises(AssertionError):
-            await middleware.get_dependency(mock_request, TestServiceForMiddleware)
+            await middleware.get_dependency(mock_request, ServiceForMiddleware)

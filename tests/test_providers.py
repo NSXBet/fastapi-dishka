@@ -7,6 +7,7 @@ from fastapi_dishka import APIRouter, Middleware, provide_middleware, provide_ro
 from fastapi_dishka.providers import (
     MiddlewareCollectorProvider,
     RouterCollectorProvider,
+    _clear_all_registries,
     _middleware_registry,
     _router_registry,
     wrap_middleware,
@@ -27,9 +28,8 @@ class TestProvideRouter:
     """Test the provide_router function."""
 
     def setup_method(self):
-        """Clear registries before each test."""
-        _router_registry.clear()
-        _middleware_registry.clear()
+        """Clear all registries before each test."""
+        _clear_all_registries()
 
     def test_provide_router_returns_composite_dependency_source(self):
         """Test that provide_router returns a CompositeDependencySource."""
@@ -70,9 +70,8 @@ class TestProvideMiddleware:
     """Test the provide_middleware function."""
 
     def setup_method(self):
-        """Clear registries before each test."""
-        _router_registry.clear()
-        _middleware_registry.clear()
+        """Clear all registries before each test."""
+        _clear_all_registries()
 
     def test_provide_middleware_returns_composite_dependency_source(self):
         """Test that provide_middleware returns a CompositeDependencySource."""
@@ -107,9 +106,8 @@ class TestRouterCollectorProvider:
     """Test the RouterCollectorProvider."""
 
     def setup_method(self):
-        """Clear registries before each test."""
-        _router_registry.clear()
-        _middleware_registry.clear()
+        """Clear all registries before each test."""
+        _clear_all_registries()
 
     def test_provide_routers_returns_copy_of_registry(self):
         """Test that provide_routers returns a copy of registered routers."""
@@ -158,9 +156,8 @@ class TestMiddlewareCollectorProvider:
     """Test the MiddlewareCollectorProvider."""
 
     def setup_method(self):
-        """Clear registries before each test."""
-        _router_registry.clear()
-        _middleware_registry.clear()
+        """Clear all registries before each test."""
+        _clear_all_registries()
 
     def test_provide_middlewares_returns_copy_of_registry(self):
         """Test that provide_middlewares returns a copy of registered middlewares."""
@@ -212,9 +209,8 @@ class TestConcurrentAccess:
     """Test that multiple providers don't interfere with each other."""
 
     def setup_method(self):
-        """Clear registries before each test."""
-        _router_registry.clear()
-        _middleware_registry.clear()
+        """Clear all registries before each test."""
+        _clear_all_registries()
 
     def test_multiple_router_registrations_dont_interfere(self):
         """Test that multiple router registrations don't interfere."""

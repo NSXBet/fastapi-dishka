@@ -1,26 +1,25 @@
 """Targeted tests to improve app.py coverage by testing specific missing lines."""
 
-import asyncio
 import threading
 from unittest.mock import Mock, patch
 import pytest
 from dishka import Provider, Scope, provide
 
-from fastapi_dishka import APIRouter, App, Middleware, provide_middleware, provide_router
+from fastapi_dishka import App, Middleware, provide_middleware
 
 
-class TestService:
+class ExampleService:
     """Test service for dependency injection."""
 
     def __init__(self):
         self.value = "test"
 
 
-class TestProvider(Provider):
+class ExampleProvider(Provider):
     """Test provider for coverage tests."""
 
     scope = Scope.APP
-    service = provide(TestService, scope=Scope.APP)
+    service = provide(ExampleService, scope=Scope.APP)
 
 
 class TestContainerResolution:
@@ -29,7 +28,7 @@ class TestContainerResolution:
     @pytest.mark.asyncio
     async def test_resolve_container_first_time(self):
         """Test that _resolve_container creates AppProvider when not already resolved."""
-        app = App("Test App", "0.1.0", TestProvider())
+        app = App("Test App", "0.1.0", ExampleProvider())
 
         # Ensure container is not resolved
         assert app._container_resolved is False
@@ -47,7 +46,7 @@ class TestStartSync:
 
     def test_start_sync_resolves_container_when_not_resolved(self):
         """Test start_sync calls asyncio.run when container not resolved (lines 129-130)."""
-        app = App("Test App", "0.1.0", TestProvider())
+        app = App("Test App", "0.1.0", ExampleProvider())
 
         # Ensure container is not resolved
         assert app._container_resolved is False
@@ -64,7 +63,7 @@ class TestStartSync:
 
     def test_start_sync_non_blocking_mode(self):
         """Test start_sync in non-blocking mode (line 131)."""
-        app = App("Test App", "0.1.0", TestProvider())
+        app = App("Test App", "0.1.0", ExampleProvider())
 
         # Mock threading to avoid actually starting server
         with patch.object(threading, "Thread") as mock_thread:
@@ -84,7 +83,7 @@ class TestNonBlockingServer:
 
     def test_start_non_blocking_creates_thread_and_event_loop(self):
         """Test _start_non_blocking method (lines 143-149)."""
-        app = App("Test App", "0.1.0", TestProvider())
+        app = App("Test App", "0.1.0", ExampleProvider())
 
         # Mock all the components that would actually start a server
         with (
@@ -138,7 +137,7 @@ class TestNonBlockingServer:
     @pytest.mark.asyncio
     async def test_start_async_non_blocking_mode(self):
         """Test async start method in non-blocking mode."""
-        app = App("Test App", "0.1.0", TestProvider())
+        app = App("Test App", "0.1.0", ExampleProvider())
 
         # Mock threading to avoid actually starting server
         with patch.object(threading, "Thread") as mock_thread:
