@@ -297,7 +297,7 @@ pip install -e ".[dev]"
 
 ### 🧪 Running Tests
 
-We maintain 96%+ test coverage (we're a bit obsessed 😅):
+We maintain 90%+ test coverage (we're a bit obsessed 😅):
 
 ```bash
 # 🏃‍♂️ Run all tests
@@ -316,7 +316,7 @@ make format
 ### 🎯 Development Standards
 
 - ✅ **Type Safety**: We love type hints and use mypy
-- 🧪 **Test Coverage**: Keep it above 95%
+- 🧪 **Test Coverage**: Keep it above 90%
 - 📚 **Documentation**: Update docs for new features
 - 🎨 **Code Style**: We use ruff and flake8
 - 🚀 **Provider-First**: Make providers first-class citizens
