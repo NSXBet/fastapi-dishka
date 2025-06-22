@@ -2,6 +2,7 @@
 
 import threading
 from unittest.mock import Mock, patch
+
 import pytest
 from dishka import Provider, Scope, provide
 
@@ -195,15 +196,22 @@ class TestStopMethod:
 class TestMiddlewareRegistration:
     """Test middleware registration code paths."""
 
+    def setup_method(self):
+        """Clear all registries before each test."""
+        from fastapi_dishka.providers import _clear_all_registries
+
+        _clear_all_registries()
+
     @pytest.mark.asyncio
     async def test_resolve_container_with_middleware(self):
         """Test _resolve_container with middleware to hit lines 103 and 107."""
+        from fastapi_dishka.providers import ProviderMeta
 
         class TestMiddleware(Middleware):
             async def dispatch(self, request, call_next):
                 return await call_next(request)
 
-        class TestProvider(Provider):
+        class TestProvider(Provider, metaclass=ProviderMeta):
             scope = Scope.APP
             test_middleware = provide_middleware(TestMiddleware)
 

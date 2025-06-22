@@ -1,5 +1,5 @@
-from dishka import Provider, Scope, provide
-from fastapi_dishka import App, APIRouter, provide_router
+from dishka import Scope, provide
+from fastapi_dishka import App, APIRouter, provide_router, Provider
 
 # Simple example service and router
 router = APIRouter()

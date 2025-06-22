@@ -65,15 +65,26 @@ class App:
         if self._container_resolved:
             return
 
+        # Import here to avoid circular imports
+        from fastapi_dishka.providers import _collect_middlewares_from_providers, _collect_routers_from_providers
+
+        # Collect routers and middlewares directly from the provider classes
+        collected_routers = _collect_routers_from_providers(self.providers)
+        collected_middlewares = _collect_middlewares_from_providers(self.providers)
+
         class AppProvider(Provider):
             scope = Scope.APP
             app = from_context(provides=App)
 
+        # Create collector providers with the collected routers and middlewares
+        router_collector = RouterCollectorProvider(collected_routers)
+        middleware_collector = MiddlewareCollectorProvider(collected_middlewares)
+
         # Always include the collectors to collect routers and middlewares
         all_providers = (
             AppProvider(),
-            RouterCollectorProvider(),
-            MiddlewareCollectorProvider(),
+            router_collector,
+            middleware_collector,
             *self.providers,
         )
 

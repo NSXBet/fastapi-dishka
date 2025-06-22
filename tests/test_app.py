@@ -7,6 +7,7 @@ from dishka import FromDishka, Provider, Scope, provide
 from fastapi.testclient import TestClient
 
 from fastapi_dishka import APIRouter, App, Middleware, provide_middleware, provide_router, start_test, stop_test, test
+from fastapi_dishka.providers import ProviderMeta
 
 
 class Logger:
@@ -37,6 +38,9 @@ class Service:
 
     def greet(self, name: str) -> str:
         return f"Hello, {name}!"
+
+    def hello(self) -> str:
+        return "Hello from service"
 
 
 class CounterHeaderMiddleware(Middleware):
@@ -71,7 +75,7 @@ def hello_world2():
     return {"message": "Hello, World! 2"}
 
 
-class LoggerProvider(Provider):
+class LoggerProvider(Provider, metaclass=ProviderMeta):
     """Provider that supplies a logger instance."""
 
     scope = Scope.APP
@@ -81,7 +85,7 @@ class LoggerProvider(Provider):
 
 @pytest.mark.asyncio
 async def test_app_can_auto_wire_routers():
-    class TestProvider(Provider):
+    class TestProvider(Provider, metaclass=ProviderMeta):
         hello_router = provide_router(router)
         service = provide(Service, scope=Scope.APP)
 
@@ -95,7 +99,7 @@ async def test_app_can_auto_wire_routers():
 
 @pytest.mark.asyncio
 async def test_another_app_can_auto_wire_routers():
-    class AnotherTestProvider(Provider):
+    class AnotherTestProvider(Provider, metaclass=ProviderMeta):
         hello_router = provide_router(router)
         service = provide(Service, scope=Scope.APP)
 
@@ -109,7 +113,7 @@ async def test_another_app_can_auto_wire_routers():
 
 @pytest.mark.asyncio
 async def test_another_app_can_auto_wire_more_than_one_router():
-    class AnotherTestProvider(Provider):
+    class AnotherTestProvider(Provider, metaclass=ProviderMeta):
         hello_router = provide_router(router)
         hello_router2 = provide_router(router2)
 
@@ -123,11 +127,11 @@ async def test_another_app_can_auto_wire_more_than_one_router():
 
 @pytest.mark.asyncio
 async def test_another_app_can_auto_wire_routers_from_different_providers():
-    class AnotherTestProvider(Provider):
+    class AnotherTestProvider(Provider, metaclass=ProviderMeta):
         hello_router = provide_router(router)
         service = provide(Service, scope=Scope.APP)
 
-    class AnotherTestProvider2(Provider):
+    class AnotherTestProvider2(Provider, metaclass=ProviderMeta):
         hello_router2 = provide_router(router2)
 
     app = App("test app", "0.1.0", LoggerProvider(), AnotherTestProvider(), AnotherTestProvider2())
@@ -142,7 +146,7 @@ async def test_another_app_can_auto_wire_routers_from_different_providers():
 async def test_app_can_start_and_handle_requests():
     """Test that the app can start and handle HTTP requests to registered routers."""
 
-    class TestProvider(Provider):
+    class TestProvider(Provider, metaclass=ProviderMeta):
         service = provide(Service, scope=Scope.APP)
         hello_router = provide_router(router)
         hello_router2 = provide_router(router2)
@@ -189,7 +193,7 @@ async def test_app_can_start_and_handle_requests():
 async def test_app_can_auto_wire_middleware_with_dependency_injection():
     """Test that middleware can be auto-wired and can use dependency injection with complex dependency chains."""
 
-    class TestProvider(Provider):
+    class TestProvider(Provider, metaclass=ProviderMeta):
         service = provide(Service, scope=Scope.APP)
         hello_router = provide_router(router)
         counter_middleware = provide_middleware(CounterHeaderMiddleware)
@@ -250,7 +254,7 @@ async def test_app_can_auto_wire_middleware_with_dependency_injection():
 async def test_start_and_stop_test_utilities():
     """Test the start_test() and stop_test() utilities work correctly."""
 
-    class TestUtilitiesProvider(Provider):
+    class TestUtilitiesProvider(Provider, metaclass=ProviderMeta):
         service = provide(Service, scope=Scope.APP)
         hello_router = provide_router(router)
 
@@ -278,7 +282,7 @@ async def test_start_and_stop_test_utilities():
 async def test_context_manager_utility():
     """Test the test() context manager utility works correctly."""
 
-    class TestContextProvider(Provider):
+    class TestContextProvider(Provider, metaclass=ProviderMeta):
         service = provide(Service, scope=Scope.APP)
         hello_router = provide_router(router)
 
@@ -298,19 +302,10 @@ async def test_context_manager_utility():
 
 
 # Global provider to test reuse across multiple tests
-class SharedTestProvider(Provider):
+class SharedTestProvider(Provider, metaclass=ProviderMeta):
     scope = Scope.APP
     service = provide(Service, scope=Scope.APP)
     hello_router = provide_router(router)
-
-
-# Clear only main registries for app tests, leave backups for cross-module provider reuse
-def setup_module():
-    """Clear main registries at the start of this test module."""
-    from fastapi_dishka.providers import _router_registry, _middleware_registry
-
-    _router_registry.clear()
-    _middleware_registry.clear()
 
 
 @pytest.mark.asyncio

@@ -37,8 +37,8 @@ poetry add fastapi-dishka
 Here's how easy it is to get rolling:
 
 ```python
-from dishka import Provider, Scope, provide, FromDishka
-from fastapi_dishka import App, APIRouter, provide_router
+from dishka import Scope, provide, FromDishka
+from fastapi_dishka import App, APIRouter, provide_router, Provider
 
 # 📦 Create your service
 class GreetingService:
@@ -78,7 +78,7 @@ That's it! Your API is running with auto-registered routes and dependency inject
 Say goodbye to manually registering every router:
 
 ```python
-from fastapi_dishka import provide_router
+from fastapi_dishka import provide_router, Provider
 
 class MyProvider(Provider):
     # ✨ These routers register themselves automatically
@@ -92,7 +92,7 @@ class MyProvider(Provider):
 Create powerful middleware that can inject dependencies:
 
 ```python
-from fastapi_dishka import Middleware, provide_middleware
+from fastapi_dishka import Middleware, provide_middleware, Provider
 
 class AuthMiddleware(Middleware):
     async def dispatch(self, request, call_next):
@@ -117,6 +117,8 @@ class SecurityProvider(Provider):
 Organize your code with multiple providers:
 
 ```python
+from fastapi_dishka import Provider
+
 # 👤 User-related stuff
 class UserProvider(Provider):
     scope = Scope.APP
@@ -164,6 +166,37 @@ await app.start(host="127.0.0.1", port=8082)
 └── 🚀 FastAPI App (ready to serve)
 ```
 
+## 🎛️ Provider Options
+
+**fastapi-dishka** gives you flexibility in how you define your providers. You have two options:
+
+### Option 1: Use fastapi-dishka Provider (Recommended)
+
+```python
+from fastapi_dishka import Provider
+
+class MyProvider(Provider):
+    scope = Scope.APP
+    # Your provider methods here...
+```
+
+This is the recommended approach as it's specifically designed for fastapi-dishka integration.
+
+### Option 2: Use dishka Provider with fastapi-dishka metaclass
+
+```python
+from dishka import Provider
+from fastapi_dishka import FastAPIDishkaProviderMeta
+
+class MyProvider(Provider, metaclass=FastAPIDishkaProviderMeta):
+    scope = Scope.APP
+    # Your provider methods here...
+```
+
+This approach allows you to use dishka's Provider directly while still getting fastapi-dishka's auto-registration features through the metaclass.
+
+Both approaches provide the same functionality - choose the one that fits your project's needs! 🎯
+
 ## 🧪 Testing
 
 Testing is a breeze with multiple patterns and full async support! Let's start with the classic hello world test:
@@ -171,8 +204,8 @@ Testing is a breeze with multiple patterns and full async support! Let's start w
 ```python
 import pytest
 from fastapi.testclient import TestClient
-from dishka import Provider, Scope, provide, FromDishka
-from fastapi_dishka import App, APIRouter, provide_router, start_test, stop_test, test
+from dishka import Scope, provide, FromDishka
+from fastapi_dishka import App, APIRouter, provide_router, start_test, stop_test, test, Provider
 
 class GreetingService:
     def greet(self, name: str) -> str:
